@@ -1,0 +1,409 @@
+install.packages("janitor")
+install.packages("anytime")
+install.packages("tidyverse")
+install.packages('googleAuthR')
+devtools::install_github("tidyverse/googlesheets4", force = TRUE)
+install.packages('dplyr')
+library(googleAnalyticsR)
+library(xlsx)
+library(anytime)
+library("dplyr")
+library("tidyr")
+library("janitor")
+library(lubridate)
+library(tidyverse)
+library(googlesheets4)
+library(googleAuthR)
+
+
+googleAuthR::gar_cache_empty()
+googleAuthR::gar_set_client("C:\\Users\\DannySmith\\Documents\\APIs\\Danny Semetrical.json")
+gar_auth(email= "ds@semetrical.com",
+         scopes = "https://www.googleapis.com/auth/analytics")
+ga_auth(email = 'ds@semetrical.com')
+gs4_auth(email = 'danny.smith@onthemarket.com')
+ga_id <- 91245521
+
+# -------- Dates ----- #
+  
+  
+  Yesterday <- format(Sys.Date()-1,"%Y-%m-%d")
+  WeekYesterday <- format(Sys.Date()-8,"%Y-%m-%d")
+  MonthYesterday <- floor_date(Sys.Date()- months(1), "month")
+  YearAgo <- format(Sys.Date() - years(1))
+  
+  date_rangeSessandPVs = c("2020-10-05", "Yesterday")
+  date_range2020 = c("2019-01-01", "Yesterday")
+  
+  
+  # ------ Regexp ------ #
+  
+  
+  # ----- Filters ---- #
+  
+  
+  rentSegment <- segment_ga4("OTM - RENT", segment_id = "gaid::1w9PS6vDQrWRDO4_7cIPWw", user_segment = NULL)
+  saleSegment <- segment_ga4("OTM - SALE", segment_id = "gaid::E6CPIAzdRNaeFe08CNvrHA", user_segment = NULL)
+  
+  
+  propertyPage <- dim_filter("pagePath", "REGEXP", "/details/")
+  propertyPageFilter <- filter_clause_ga4(list(propertyPage))
+  
+  alertSignup <- dim_filter("eventCategory", "EXACT", "Alert Signup")
+  alertSignup2 <- dim_filter("eventCategory", "EXACT", "Alert signup via contact agent")
+  alertFilter <- filter_clause_ga4(list(alertSignup, alertSignup2))
+  
+  
+  callAgent <- dim_filter("eventCategory", "REGEXP", "Phone no. Search Results Page|Estate agent number")
+  CallAgentFilter <- filter_clause_ga4(list( callAgent), operator = "OR")
+  
+  ContactAgentSub <- dim_filter("eventCategory", "REGEXP", "Contact Agent Form Submit")
+  ContactAgentSubFilter <- filter_clause_ga4(list(ContactAgentSub))
+  
+  ValuationSubmission <- dim_filter("eventCategory", "REGEXP", "Free valuation")
+  ValuationsFilter <- filter_clause_ga4(list(ValuationSubmission)) 
+  
+  
+  
+  # ---- Property Type ---- # 
+  
+  rentalSessions20 <- google_analytics(ga_id,
+                                       date_range = date_rangeSessandPVs,
+                                       metrics = "sessions",
+                                       dimensions = "date",
+                                       segments = rentSegment,
+                                       anti_sample = TRUE)
+  
+  saleSessions20 <- google_analytics(ga_id,
+                                     date_range = date_rangeSessandPVs,
+                                     metrics = "sessions",
+                                     dimensions = "date",
+                                     segments = saleSegment,
+                                     anti_sample = TRUE)
+  
+  
+  
+  
+  rentalPVs <- google_analytics(ga_id,
+                                date_range = date_rangeSessandPVs,
+                                metrics = "pageviews",
+                                dimensions = "date",
+                                dim_filters = propertyPageFilter,
+                                segments = rentSegment,
+                                anti_sample = TRUE)
+  
+  
+  salePVs <- google_analytics(ga_id,
+                              date_range = date_rangeSessandPVs,
+                              metrics = "pageviews",
+                              dimensions = "date",
+                              dim_filters = propertyPageFilter,
+                              segments = saleSegment,
+                              anti_sample = TRUE)
+  
+  
+  
+  rentandsale <- data.frame(rentalSessions20$date, rentalSessions20$sessions, rentalPVs$pageviews, saleSessions20$sessions, salePVs$pageviews)
+  names(rentandsale)[1] <- "date"
+  names(rentandsale)[2] <- "Rent Sessions"
+  names(rentandsale)[3] <- "Rent Pageviews"
+  names(rentandsale)[4] <- "Sales Sessions"
+  names(rentandsale)[5] <- "Sale Pageviews"
+  rentandsaleold <- read.csv("C:\\Users\\DannySmith\\Documents\\OTM\\Coronavirus\\Sale and Rent.cvs")
+  rentandsaleold <- rentandsaleold[,2:6]
+  View(rentandsaleold)
+  names(rentandsaleold)[1] <- "date"
+  names(rentandsaleold)[2] <- "Rent Sessions"
+  names(rentandsaleold)[3] <- "Rent Pageviews"
+  names(rentandsaleold)[4] <- "Sales Sessions"
+  names(rentandsaleold)[5] <- "Sale Pageviews"
+  
+  rentandsale <- rbind(rentandsale, rentandsaleold)
+  rentandsale <- rentandsale %>% distinct(date, .keep_all = TRUE)
+  
+sheet_write(rentandsale, ss="13Bvq7HHS_mfCGAkqPJ7nEzavRVPlvFobfRw5EjVWJsE", sheet = "Sessions/Pageviews by Property Type")
+write.csv(rentandsale,  "C:\\Users\\DannySmith\\Documents\\OTM\\Coronavirus\\Sale and Rent.cvs")
+
+
+ga_id <- 91245521
+Yesterday <- format(Sys.Date()-1,"%Y-%m-%d")
+WeekYesterday <- format(Sys.Date()-8,"%Y-%m-%d")
+MonthYesterday <- floor_date(Sys.Date()- months(1), "month")
+YearAgo <- format(Sys.Date() - years(1))
+
+
+
+getSunDate <- function(day) {
+  library(lubridate)
+  dates <- seq((Sys.Date()-7), (Sys.Date()-1), by="days")
+  dates[wday(dates, label=T)==day]
+}
+
+
+
+date2 <- getSunDate("Sun")
+
+date1 <- date2 - 6
+
+
+
+
+
+leadsdaterange = c(date1, date2)
+
+
+#WORK OUT HOW TO IMPORT RENT AND SALE TO SAVE TIME#
+
+oldConversion <- read.csv("C:\\Users\\DannySmith\\Documents\\OTM\\Coronavirus\\GA Leads\\Test.csv")
+oldConversion <- subset(oldConversion, select = -X)
+names(oldConversion)[1] <- "date"
+names(oldConversion)[2] <- "Rent Sessions"
+names(oldConversion)[3] <- "Sale Sessions"
+names(oldConversion)[4] <- "Rent Contact Agent"
+names(oldConversion)[5] <- "Rent Call Agent"
+names(oldConversion)[6] <- "Rent Alert Signup"
+names(oldConversion)[7] <- "Sale Contact Agent"
+names(oldConversion)[8] <- "Sale Call Agent"
+names(oldConversion)[9] <- "Sale Alert Signup"
+
+oldConversion$date <- as.Date(oldConversion$date, format = "%Y-%m-%d")
+
+rentalSessions20 <- google_analytics(ga_id,
+                                     date_range = leadsdaterange,
+                                     metrics = "sessions",
+                                     dimensions = "date",
+                                     segments = rentSegment,
+                                     anti_sample = TRUE)
+
+saleSessions20 <- google_analytics(ga_id,
+                                   date_range = leadsdaterange,
+                                   metrics = "sessions",
+                                   dimensions = "date",
+                                   segments = saleSegment,
+                                   anti_sample = TRUE)
+ContactAgentSubmissions <- google_analytics(ga_id,
+                                            date_range = leadsdaterange,
+                                            metrics = "totalEvents",
+                                            dimensions = c("date", "eventAction"), 
+                                            dim_filters = ContactAgentSubFilter,
+                                            anti_sample = TRUE)
+
+RENTContactAgent <- ContactAgentSubmissions[grepl("lettings|student|studentstudent|to-rent|rentcommerical", ContactAgentSubmissions$eventAction),]
+RENTContactAgent$eventAction <- "Rent"
+RENTContactAgent <- RENTContactAgent %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))
+
+names(RENTContactAgent)[names(RENTContactAgent) == "sum(totalEvents)"] <- "RENT_Contact_Agent"
+
+SALEContactAgent <- ContactAgentSubmissions[grepl("for-sale|resale|for-salecommerical|overseas|new-homes|farm-land|development", ContactAgentSubmissions$eventAction),]
+SALEContactAgent$eventAction <- "Sale"
+SALEContactAgent <- SALEContactAgent %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))
+
+names(SALEContactAgent)[names(SALEContactAgent) == "sum(totalEvents)"] <- "SALE_Contact_Agent"
+
+
+# ---- Call Agent ---- # 
+
+CallAgent <- google_analytics(ga_id,
+                              date_range = leadsdaterange,
+                              metrics = "totalEvents",
+                              dimensions = c("date", "eventAction", "eventLabel"), 
+                              dim_filters = CallAgentFilter,
+                              anti_sample = TRUE)
+
+
+
+CallAgent$eventLabel <- ifelse(CallAgent$eventLabel == "(not set)", CallAgent$eventAction, CallAgent$eventLabel)
+
+
+
+SALECallAgent <- CallAgent[grepl("for-sale|resale|for-salecommerical|overseas|new-homes|farm-land|development", CallAgent$eventAction),]
+SALECallAgent$eventAction <- "Sale"
+SALECallAgent <- SALECallAgent %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))
+names(SALECallAgent)[names(SALECallAgent) == "sum(totalEvents)"] <- "SALE_Call_Agent"  
+
+RENTCallAgent <- CallAgent[grepl("lettings|student|studentstudent|to-rent|rentcommerical", CallAgent$eventAction),]
+RENTCallAgent$eventAction <- "Rent"
+RENTCallAgent <- RENTCallAgent %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))                       
+names(RENTCallAgent)[names(RENTCallAgent) == "sum(totalEvents)"] <- "RENT_Call_Agent"  
+
+# ---- Alerts ---- # 
+
+alertSignups <- google_analytics(ga_id,
+                                 date_range = leadsdaterange,
+                                 metrics = "totalEvents",
+                                 dimensions = c("date", "eventAction"), 
+                                 dim_filters = alertFilter,
+                                 anti_sample = TRUE)
+
+
+
+SALEalertSignups <- alertSignups[grepl("for-sale|resale|for-salecommerical|overseas|new-homes|farm-land|development", alertSignups$eventAction),]
+SALEalertSignups$eventAction <- "Sale"
+SALEalertSignups <- SALEalertSignups %>% group_by(date, eventAction) %>% summarise(sum(totalEvents)) 
+names(SALEalertSignups)[names(SALEalertSignups) == "sum(totalEvents)"] <- "SALE_Alert_Signups"  
+
+RENTalertSignups <- alertSignups[grepl("lettings|student|studentstudent|to-rent|rentcommerical", alertSignups$eventAction),]
+RENTalertSignups$eventAction <- "Rent"
+RENTalertSignups <- RENTalertSignups %>% group_by(date, eventAction) %>% summarise(sum(totalEvents)) 
+names(RENTalertSignups)[names(RENTalertSignups) == "sum(totalEvents)"] <- "RENT_Alert_Signups"
+
+
+
+
+rentandsaleConversions <- data.frame(rentalSessions20$date, rentalSessions20$sessions, saleSessions20$sessions, RENTContactAgent$RENT_Contact_Agent, RENTCallAgent$RENT_Call_Agent, RENTalertSignups$RENT_Alert_Signups, SALEContactAgent$SALE_Contact_Agent, SALECallAgent$SALE_Call_Agent, SALEalertSignups$SALE_Alert_Signups)
+names(rentandsaleConversions)[1] <- "date"
+names(rentandsaleConversions)[2] <- "Rent Sessions"
+names(rentandsaleConversions)[3] <- "Sale Sessions"
+names(rentandsaleConversions)[4] <- "Rent Contact Agent"
+names(rentandsaleConversions)[5] <- "Rent Call Agent"
+names(rentandsaleConversions)[6] <- "Rent Alert Signup"
+names(rentandsaleConversions)[7] <- "Sale Contact Agent"
+names(rentandsaleConversions)[8] <- "Sale Call Agent"
+names(rentandsaleConversions)[9] <- "Sale Alert Signup"
+
+merged <- rbind(oldConversion, rentandsaleConversions)
+
+merged <- merged[!duplicated(merged$date), ] 
+
+sheet_write(merged, ss = "13Bvq7HHS_mfCGAkqPJ7nEzavRVPlvFobfRw5EjVWJsE", sheet = "Leads" )
+
+write.csv(merged,"C:\\Users\\DannySmith\\Documents\\OTM\\Coronavirus\\GA Leads\\Test.csv")
+# ------- ALERTS DATA ------- #
+date1 <- "2020-01-01"
+
+getSunDate <- function(day) {
+  library(lubridate)
+  dates <- seq((Sys.Date()-7), (Sys.Date()-1), by="days")
+  dates[wday(dates, label=T)==day]
+}
+
+date2 <- getSunDate("Sun")
+date2 <- "Yesterday"
+
+
+
+alerts_date_range <- c(date1, date2)
+ga_id1 <- 91245521
+ga_id2 <- 107091079
+ga_id3 <- 169471962
+
+
+alertfilter <- dim_filter("eventCategory", "REGEXP", "Alert signup via|alert signup$|Stand alone")
+alertfilterclause <- filter_clause_ga4(list(alertfilter))
+
+MEPalertfilter <- dim_filter("eventCategory", "REGEXP", "MEP Alert Creation")
+MEPalertfilterclause <- filter_clause_ga4(list(MEPalertfilter))
+
+
+
+
+DailyAlertsMainSite <- google_analytics (ga_id1,
+                                         date_range = alerts_date_range,
+                                         metrics = "totalEvents",
+                                         dimensions = c("date", "eventAction"),
+                                         dim_filter = alertfilterclause,
+                                         anti_sample = TRUE)
+
+DailyAlertsCountryLife <- google_analytics (ga_id2,
+                                            date_range = alerts_date_range,
+                                            metrics = "totalEvents",
+                                            dimensions = c("date", "eventAction"),
+                                            dim_filter = alertfilterclause,
+                                            anti_sample = TRUE)
+
+DailyAlertsMEP <- google_analytics (ga_id3,
+                                    date_range = alerts_date_range,
+                                    metrics = "totalEvents",
+                                    dimensions = c("date", "eventAction"),
+                                    dim_filter = MEPalertfilterclause,
+                                    anti_sample = TRUE)
+
+
+# ------- ALERTS Data Processing & Exportion ------- #
+
+
+
+DailyAlertsNormal <- rbind(DailyAlertsMainSite, DailyAlertsCountryLife)
+DailyAlertsNormal <- DailyAlertsNormal %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))
+
+
+SALEFUNC <- function(x){
+  x[grepl("for-sale|resale|for-salecommerical|overseas|new-homes|farms-land|development", x$eventAction),]
+}
+
+RENTFUNC <- function(x){
+  x[grepl("lettings|student|studentstudent|to-rent|rentcommerical|to-ren", x$eventAction),]
+}
+
+UNDEFINEDFUNC <- function(x){
+  x[grepl("agent|agents|undefined|Multi agent - dedicated|Sale agent - property profile|Multi agent - additional|track_event", x$eventAction),]
+}
+
+saleNormal <- SALEFUNC(DailyAlertsNormal)
+saleNormal$eventAction <- "for-sale"
+rentNormal <- RENTFUNC(DailyAlertsNormal)
+rentNormal$eventAction <- "to-rent"
+undefinedNormal <- UNDEFINEDFUNC(DailyAlertsNormal)
+undefinedNormal$eventAction <- "undefined"
+DailyAlertsNormal <- rbind(saleNormal, rentNormal, undefinedNormal) 
+names(DailyAlertsNormal)[3] <- "totalEvents"
+
+
+
+DailyAlertsNormal <- DailyAlertsNormal %>% group_by(date, eventAction) %>% summarise(sum(totalEvents))
+
+names(DailyAlertsNormal)[3] <- 'events'
+
+pivoted <- pivot_wider(DailyAlertsNormal, names_from = eventAction, values_from = events)
+
+pivoted$`for-sale` <- round(ifelse(is.na(pivoted$`for-sale`+(pivoted$undefined/2)),pivoted$`for-sale`,pivoted$`for-sale`+(pivoted$undefined/2)),0)
+pivoted$`to-rent` <- round(ifelse(is.na(pivoted$`to-rent`+(pivoted$undefined/2)),pivoted$`to-rent`,pivoted$`to-rent`+(pivoted$undefined/2)),0)
+
+keep <- c("date","for-sale","to-rent") 
+pivoted <- pivoted[,names(pivoted) %in% keep]
+pivoted <- pivoted %>% pivot_longer(cols = c("for-sale","to-rent"), names_to = "eventAction",values_to = "sum(totalEvents)")
+#READ IN OLD  ALERTS#
+sheet_write(pivoted, ss = "13Bvq7HHS_mfCGAkqPJ7nEzavRVPlvFobfRw5EjVWJsE", sheet = "Alerts" )
+#CHANNEL GROUPING#
+
+
+Yesterday <- as.Date(format(Sys.Date()-1,"%Y-%m-%d"))
+WeekYesterday <- format(Sys.Date()-8,"%Y-%m-%d")
+MonthYesterday <- floor_date(Sys.Date()- months(1), "month")
+YearAgo <- format(Sys.Date() - years(1))
+
+mainChannelGrouping <- dim_filter("channelGrouping", "REGEXP", "Organic Search|Direct|Email|Paid Search")
+mainChannelGroupingFilter <- filter_clause_ga4(list(mainChannelGrouping))
+
+
+date_range = c("2019-01-01", "Yesterday")
+
+sessionsData <- google_analytics(ga_id1,
+                                 date_range = date_range,
+                                 metrics = "sessions",
+                                 dimensions = c("date", "channelGrouping"),
+                                 dim_filters = mainChannelGroupingFilter,
+                                 anti_sample = TRUE)
+
+sessionsData$lastyear <- as.Date(format(sessionsData$date-364,"%Y-%m-%d"))
+sessionsData$date <- as.Date(sessionsData$date)
+organicSessions <- subset(sessionsData, channelGrouping == "Organic Search")
+directSessions <- subset(sessionsData, channelGrouping == "Direct")
+paidSessions <- subset(sessionsData, channelGrouping == "Paid Search")
+emailSessions <- subset(sessionsData, channelGrouping == "Email")
+
+channelsData <- data.frame(organicSessions$date, organicSessions$sessions, directSessions$sessions, paidSessions$sessions, emailSessions$sessions,organicSessions$lastyear)
+names(channelsData)[1] <- "date"
+names(channelsData)[2] <- "Organic"
+names(channelsData)[3] <- "Direct"
+names(channelsData)[4] <- "Paid"
+names(channelsData)[5] <- "Email"
+  
+names(channelsData)[6] <- "previous year date"
+
+sheet_write(channelsData,ss = "13Bvq7HHS_mfCGAkqPJ7nEzavRVPlvFobfRw5EjVWJsE", sheet = "Channels")
+
+
+
+
+  
